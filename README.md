@@ -90,29 +90,29 @@ Example:
 
 ```powershell
 $account = [PSCustomObject]@{
-    user_name       = $p.ExternalId
+    user_name       = $p.Accounts.MicrosoftActiveDirectory.userPrincipalName
     employee_number = $p.ExternalId
-    email           = $p.Contact.Business.Email
-    name 			= $p.Name.DisplayName
-    first_name 		= $p.Name.GivenName
-    middle_name		= $p.Name.MiddleName
-    last_name		= $p.Name.FamilyName
-    gender 		    = switch ($p.Details.Gender){
-                          'F' {'Female'}
-                          'M' {'Male'}
-                          'X' {'Undefined'}
-                      }
-    home_phone	    = $p.contact.Personal.phone.Fixed
-    street		    = $p.contact.Personal.Address.Street
-    zip_code		= $p.contact.Personal.Address.PostalCode
-    city			= $p.contact.Personal.Address.Locality
-    country		    = $p.contact.Personal.Address.Country
-    phone			= $p.Contact.Business.Phone.Fixed
-    mobile_phone	= $p.Contact.Business.Phone.Mobile
-    title 			= $p.PrimaryContract.Title.Name
-    manager         = $p.PrimaryManager.DisplayName
-    active 			= $false
-    locked_out 		= $true
+    email           = $p.Accounts.MicrosoftActiveDirectory.userPrincipalName
+    first_name      = $p.Name.Nickname
+    last_name       = $p.Accounts.MicrosoftActiveDirectory.sn
+    gender          = switch ($p.Details.Gender) {
+        'F' { 'Female' }
+        'M' { 'Male' }
+        'X' { 'Undefined' }
+    }
+    home_phone      = $p.contact.Personal.phone.Fixed
+    street          = $p.contact.Personal.Address.Street
+    zip_code        = $p.contact.Personal.Address.PostalCode
+    city            = $p.contact.Personal.Address.Locality
+    country         = $p.contact.Personal.Address.Country
+    phone           = $p.Contact.Business.Phone.Fixed
+    mobile_phone    = $p.Contact.Business.Phone.Mobile
+    department      = $p.PrimaryContract.Department.DisplayName
+    manager         = "" # manager is determined automatically later in script
+    title           = $p.PrimaryContract.Title.Name
+    location        = $p.PrimaryContract.Department.DisplayName
+    active          = $false
+    locked_out      = $true
 }
 ```
 
@@ -123,12 +123,20 @@ $account = [PSCustomObject]@{
 To customize the validation property:
 
 1. Open the __create lifecycle__ action in your code editor or directly from HelloID.
-2. Nagivate to line __87__.
-3. Modify the code block underneath line: _'# Verify if [account.email] has a value'_.
-4. Navigate to line __101__.
-5. Modify the line `$($config.BaseUrl)/api/now/table/sys_user?sysparm_query=email=$($account.email)` according to your requirements.
+2. Nagivate to line __14__.
+3. Modify the variables: _'$correlationProperty and $correlationValue'_ according to your requirements.
 
 >:information_source:Search query `sysparm_query` is not a typo!
+
+Additinally, we have to correlate to the servicenow user of the manager, since we need to use the id in the account mapping.
+To customize the manager validation property:
+
+1. Open the __create lifecycle__ action in your code editor or directly from HelloID.
+2. Navigate to line __17__.
+3. Modify the variables: _'$managerCorrelationProperty and $managercorrelationValue'_ according to your requirements.
+4. Open the __update lifecycle__ action in your code editor or directly from HelloID.
+5. Navigate to line __15__.
+6. Modify the variables: _'$managerCorrelationProperty and $managercorrelationValue'_ according to your requirements.
 
 #### Update using a `PUT`
 

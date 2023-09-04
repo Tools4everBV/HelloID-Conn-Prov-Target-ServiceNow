@@ -1,38 +1,43 @@
 ############################################
 # HelloID-Conn-Prov-Target-ServiceNow-Update
 #
-# Version: 1.0.0
+# Version: 1.0.1
 ############################################
 # Initialize default values
 $config = $configuration | ConvertFrom-Json
 $p = $person | ConvertFrom-Json
 $aRef = $AccountReference | ConvertFrom-Json
+$m = $manager | ConvertFrom-Json
 $success = $false
 $auditLogs = [System.Collections.Generic.List[PSCustomObject]]::new()
 
+# Correlation values
+$managerCorrelationProperty = "email" # Has to match the name of the unique identifier
+$managerCorrelationValue = $m.Accounts.MicrosoftActiveDirectory.userPrincipalName # Has to match the value of the unique identifier
+
 # Account mapping
 $account = [PSCustomObject]@{
-    user_name       = $p.ExternalId
+    user_name       = $p.Accounts.MicrosoftActiveDirectory.userPrincipalName
     employee_number = $p.ExternalId
-    email           = $p.Contact.Business.Email
-    name 			= $p.Name.DisplayName
-    first_name 		= $p.Name.GivenName
-    middle_name		= $p.Name.MiddleName
-    last_name		= $p.Name.FamilyName
-    gender 		    = switch ($p.Details.Gender){
-                          'F' {'Female'}
-                          'M' {'Male'}
-                          'X' {'Undefined'}
-                      }
-    home_phone	    = $p.contact.Personal.phone.Fixed
-    street		    = $p.contact.Personal.Address.Street
-    zip_code		= $p.contact.Personal.Address.PostalCode
-    city			= $p.contact.Personal.Address.Locality
-    country		    = $p.contact.Personal.Address.Country
-    phone			= $p.Contact.Business.Phone.Fixed
-    mobile_phone	= $p.Contact.Business.Phone.Mobile
-    title 			= $p.PrimaryContract.Title.Name
-    manager         = $p.PrimaryManager.DisplayName
+    email           = $p.Accounts.MicrosoftActiveDirectory.userPrincipalName
+    first_name      = $p.Name.Nickname
+    last_name       = $p.Accounts.MicrosoftActiveDirectory.sn
+    gender          = switch ($p.Details.Gender) {
+        'F' { 'Female' }
+        'M' { 'Male' }
+        'X' { 'Undefined' }
+    }
+    home_phone      = $p.contact.Personal.phone.Fixed
+    street          = $p.contact.Personal.Address.Street
+    zip_code        = $p.contact.Personal.Address.PostalCode
+    city            = $p.contact.Personal.Address.Locality
+    country         = $p.contact.Personal.Address.Country
+    phone           = $p.Contact.Business.Phone.Fixed
+    mobile_phone    = $p.Contact.Business.Phone.Mobile
+    department      = $p.PrimaryContract.Department.DisplayName
+    manager         = "" # manager is determined automatically later in script
+    title           = $p.PrimaryContract.Title.Name
+    location        = $p.PrimaryContract.Department.DisplayName
 }
 
 # Enable TLS1.2
@@ -63,17 +68,19 @@ function Resolve-ServiceNowError {
         try {
             if ($ErrorObject.Exception.GetType().FullName -eq 'Microsoft.PowerShell.Commands.HttpResponseException') {
                 $rawErrorMessage = ($ErrorObject.ErrorDetails.Message | ConvertFrom-Json)
-                $httpErrorObj.ErrorDetails =  "Error: $($rawErrorMessage.error.message), details: $($rawErrorMessage.error.detail), status: $($rawErrorMessage.status)"
-                $httpErrorObj.FriendlyMessage =  $rawErrorMessage.error.message
-            } elseif ($ErrorObject.Exception.GetType().FullName -eq 'System.Net.WebException') {
+                $httpErrorObj.ErrorDetails = "Error: $($rawErrorMessage.error.message), details: $($rawErrorMessage.error.detail), status: $($rawErrorMessage.status)"
+                $httpErrorObj.FriendlyMessage = $rawErrorMessage.error.message
+            }
+            elseif ($ErrorObject.Exception.GetType().FullName -eq 'System.Net.WebException') {
                 $streamReaderResponse = [System.IO.StreamReader]::new($ErrorObject.Exception.Response.GetResponseStream()).ReadToEnd()
-                if($null -ne $streamReaderResponse){
+                if ($null -ne $streamReaderResponse) {
                     $rawErrorMessage = ($streamReaderResponse | ConvertFrom-Json)
-                    $httpErrorObj.ErrorDetails =  "Error: $($rawErrorMessage.error.message), details: $($rawErrorMessage.error.detail), status: $($rawErrorMessage.status)"
-                    $httpErrorObj.FriendlyMessage =  $rawErrorMessage.error.message
+                    $httpErrorObj.ErrorDetails = "Error: $($rawErrorMessage.error.message), details: $($rawErrorMessage.error.detail), status: $($rawErrorMessage.status)"
+                    $httpErrorObj.FriendlyMessage = $rawErrorMessage.error.message
                 }
             }
-        } catch {
+        }
+        catch {
             $httpErrorObj.FriendlyMessage = "Received an unexpected response. The JSON could not be converted, error: [$($_.Exception.Message)]. Original error from web service: [$($ErrorObject.Exception.Message)]"
         }
         Write-Output $httpErrorObj
@@ -101,7 +108,8 @@ try {
         $splatInvokeRestMethodProps['Uri'] = "$($config.BaseUrl)/api/now/table/sys_user/$aRef"
         $splatInvokeRestMethodProps['Method'] = 'GET'
         $currentAccount = Invoke-RestMethod @splatInvokeRestMethodProps
-    } catch {
+    }
+    catch {
         # A '400'bad request is returned if the entity cannot be found
         if ($_.Exception.Response.StatusCode -eq 400) {
             $currentAccount = $null
@@ -109,6 +117,20 @@ try {
         else {
             throw
         }
+    }
+
+    # Get the manager id from ServiceNow
+    $splatInvokeRestMethodProps['Uri'] = "$($config.BaseUrl)/api/now/table/sys_user?sysparm_query=$managerCorrelationProperty=$managerCorrelationValue"
+    $splatInvokeRestMethodProps['Method'] = 'GET'
+    $responseManagerUser = Invoke-RestMethod @splatInvokeRestMethodProps
+    if (($responseManagerUser.result.sys_id | Measure-Object).Count -eq 0) {
+        Write-Warning "No account found for manager where [$managerCorrelationProperty=$managerCorrelationValue]"
+    }
+    elseif (($responseManagerUser.result.sys_id | Measure-Object).Count -gt 1) {
+        Write-Warning "Multiple accounts found for manager where [$managerCorrelationProperty=$managerCorrelationValue]. Please correct this so this is unique"
+    }
+    else {
+        $account.manager = $responseManagerUser.result.sys_id
     }
 
     # Always compare the account against the current account in the target system
@@ -128,10 +150,12 @@ try {
 
             $changedPropertiesObject.$propertyName = $propertyValue
         }
-    } elseif (-not($propertiesChanged)) {
+    }
+    elseif (-not($propertiesChanged)) {
         $action = 'NoChanges'
         $dryRunMessage = 'No changes will be made to the account during enforcement'
-    } elseif ($null -eq $currentAccount) {
+    }
+    elseif ($null -eq $currentAccount) {
         $action = 'NotFound'
         $dryRunMessage = "ServiceNow account for: [$($p.DisplayName)] not found. Possibly deleted."
     }
@@ -156,9 +180,9 @@ try {
 
                 $success = $true
                 $auditLogs.Add([PSCustomObject]@{
-                    Message = 'Update account was successful'
-                    IsError = $false
-                })
+                        Message = 'Update account was successful'
+                        IsError = $false
+                    })
                 break
             }
 
@@ -166,23 +190,24 @@ try {
                 Write-Verbose "No changes to ServiceNow account with accountReference: [$aRef]"
                 $success = $true
                 $auditLogs.Add([PSCustomObject]@{
-                    Message = 'No changes will be made to the account during enforcement'
-                    IsError = $false
-                })
+                        Message = 'No changes will be made to the account during enforcement'
+                        IsError = $false
+                    })
                 break
             }
 
             'NotFound' {
                 $success = $false
                 $auditLogs.Add([PSCustomObject]@{
-                    Message = "ServiceNow account for: [$($p.DisplayName)] not found. Possibly deleted"
-                    IsError = $true
-                })
+                        Message = "ServiceNow account for: [$($p.DisplayName)] not found. Possibly deleted"
+                        IsError = $true
+                    })
                 break
             }
         }
     }
-} catch {
+}
+catch {
     $success = $false
     $ex = $PSItem
     if ($($ex.Exception.GetType().FullName -eq 'Microsoft.PowerShell.Commands.HttpResponseException') -or
@@ -190,7 +215,8 @@ try {
         $errorObj = Resolve-ServiceNowError -ErrorObject $ex
         $auditMessage = "Could not update ServiceNow account. Error: $($errorObj.FriendlyMessage)"
         Write-Verbose "Error at Line '$($errorObj.ScriptLineNumber)': $($errorObj.Line). Error: $($errorObj.ErrorDetails)"
-    } else {
+    }
+    else {
         $auditMessage = "Could not update ServiceNow account. Error: $($ex.Exception.Message)"
         Write-Verbose "Error at Line '$($ex.InvocationInfo.ScriptLineNumber)': $($ex.InvocationInfo.Line). Error: $($ex.Exception.Message)"
     }
@@ -198,8 +224,9 @@ try {
             Message = $auditMessage
             IsError = $true
         })
-# End
-} finally {
+    # End
+}
+finally {
     $result = [PSCustomObject]@{
         Success   = $success
         Account   = $account

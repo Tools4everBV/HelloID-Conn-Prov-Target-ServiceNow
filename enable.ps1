@@ -1,7 +1,7 @@
 ############################################
 # HelloID-Conn-Prov-Target-ServiceNow-Enable
 #
-# Version: 1.0.0
+# Version: 1.0.1
 ############################################
 # Initialize default values
 $config = $configuration | ConvertFrom-Json
@@ -17,6 +17,12 @@ $auditLogs = [System.Collections.Generic.List[PSCustomObject]]::new()
 switch ($($config.IsDebug)) {
     $true { $VerbosePreference = 'Continue' }
     $false { $VerbosePreference = 'SilentlyContinue' }
+}
+
+# Account mapping
+$account = [PSCustomObject]@{
+    active     = $true
+    locked_out = $false
 }
 
 #region functions
@@ -38,17 +44,19 @@ function Resolve-ServiceNowError {
         try {
             if ($ErrorObject.Exception.GetType().FullName -eq 'Microsoft.PowerShell.Commands.HttpResponseException') {
                 $rawErrorMessage = ($ErrorObject.ErrorDetails.Message | ConvertFrom-Json)
-                $httpErrorObj.ErrorDetails =  "Error: $($rawErrorMessage.error.message), details: $($rawErrorMessage.error.detail), status: $($rawErrorMessage.status)"
-                $httpErrorObj.FriendlyMessage =  $rawErrorMessage.error.message
-            } elseif ($ErrorObject.Exception.GetType().FullName -eq 'System.Net.WebException') {
+                $httpErrorObj.ErrorDetails = "Error: $($rawErrorMessage.error.message), details: $($rawErrorMessage.error.detail), status: $($rawErrorMessage.status)"
+                $httpErrorObj.FriendlyMessage = $rawErrorMessage.error.message
+            }
+            elseif ($ErrorObject.Exception.GetType().FullName -eq 'System.Net.WebException') {
                 $streamReaderResponse = [System.IO.StreamReader]::new($ErrorObject.Exception.Response.GetResponseStream()).ReadToEnd()
-                if($null -ne $streamReaderResponse){
+                if ($null -ne $streamReaderResponse) {
                     $rawErrorMessage = ($streamReaderResponse | ConvertFrom-Json)
-                    $httpErrorObj.ErrorDetails =  "Error: $($rawErrorMessage.error.message), details: $($rawErrorMessage.error.detail), status: $($rawErrorMessage.status)"
-                    $httpErrorObj.FriendlyMessage =  $rawErrorMessage.error.message
+                    $httpErrorObj.ErrorDetails = "Error: $($rawErrorMessage.error.message), details: $($rawErrorMessage.error.detail), status: $($rawErrorMessage.status)"
+                    $httpErrorObj.FriendlyMessage = $rawErrorMessage.error.message
                 }
             }
-        } catch {
+        }
+        catch {
             $httpErrorObj.FriendlyMessage = "Received an unexpected response. The JSON could not be converted, error: [$($_.Exception.Message)]. Original error from web service: [$($ErrorObject.Exception.Message)]"
         }
         Write-Output $httpErrorObj
@@ -76,7 +84,8 @@ try {
         $splatInvokeRestMethodProps['Uri'] = "$($config.BaseUrl)/api/now/table/sys_user/$aRef"
         $splatInvokeRestMethodProps['Method'] = 'GET'
         $null = Invoke-RestMethod @splatInvokeRestMethodProps
-    } catch {
+    }
+    catch {
         # A '400'bad request is returned if the entity cannot be found
         if ($_.Exception.Response.StatusCode -eq 400) {
             $auditLogMessage = "ServiceNow account for: [$($p.DisplayName)] not found. Possibly deleted"
@@ -98,7 +107,8 @@ try {
         Write-Verbose "Enabling ServiceNow account with accountReference: [$aRef]"
         $splatInvokeRestMethodProps['Uri'] = "$($config.BaseUrl)/api/now/table/sys_user/$aRef"
         $splatInvokeRestMethodProps['Method'] = 'PUT'
-        $splatInvokeRestMethodProps['Body'] = @{ active = $true } | ConvertTo-Json
+        $body = $account | ConvertTo-Json
+        $splatInvokeRestMethodProps['Body'] = [System.Text.Encoding]::UTF8.GetBytes($body)
         $null = Invoke-RestMethod @splatInvokeRestMethodProps
 
         $success = $true
@@ -107,7 +117,8 @@ try {
                 IsError = $false
             })
     }
-} catch {
+}
+catch {
     $success = $false
     $ex = $PSItem
     if ($($ex.Exception.GetType().FullName -eq 'Microsoft.PowerShell.Commands.HttpResponseException') -or
@@ -115,7 +126,8 @@ try {
         $errorObj = Resolve-ServiceNowError -ErrorObject $ex
         $auditMessage = "Could not enable ServiceNow account. Error: $($errorObj.FriendlyMessage)"
         Write-Verbose "Error at Line '$($errorObj.ScriptLineNumber)': $($errorObj.Line). Error: $($errorObj.ErrorDetails)"
-    } else {
+    }
+    else {
         $auditMessage = "Could not enable ServiceNow account. Error: $($ex.Exception.Message)"
         Write-Verbose "Error at Line '$($ex.InvocationInfo.ScriptLineNumber)': $($ex.InvocationInfo.Line). Error: $($ex.Exception.Message)"
     }
@@ -123,8 +135,9 @@ try {
             Message = $auditMessage
             IsError = $true
         })
-# End
-} finally {
+    # End
+}
+finally {
     $result = [PSCustomObject]@{
         Success   = $success
         Auditlogs = $auditLogs
