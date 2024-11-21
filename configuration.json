@@ -1,54 +1,34 @@
 [
-    {
-        "key": "UserName",
-        "type": "input",
-        "defaultValue": "",
-        "templateOptions": {
-            "label": "UserName",
-            "description": "The UserName to connect to the ServiceNow API",
-            "required": true
-        }
-    },
-    {
-        "key": "Password",
-        "type": "input",
-        "defaultValue": "",
-        "templateOptions": {
-            "type": "password",
-            "label": "Password",
-            "description": "The password to connect to the ServiceNow API",
-            "required": true
-        }
-    },
-    {
-        "key": "BaseUrl",
-        "type": "input",
-        "defaultValue": "",
-        "templateOptions": {
-            "label": "BaseUrl",
-            "placeholder": "https://{environment}.service-now.com",
-            "description": "The URL to the ServiceNow environment.",
-            "required": true
-        }
-    },
-    {
-        "key": "UpdatePersonOnCorrelate",
-        "type": "checkbox",
-        "defaultValue": false,
-        "templateOptions": {
-          "label": "Update account during correlating",
-          "required": false,
-          "description": "This will update the account in the target application during correlation"
-        }
-    },
-    {
-        "key": "IsDebug",
-        "type": "checkbox",
-        "defaultValue": true,
-        "templateOptions": {
-            "label": "Toggle debug logging",
-            "description": "When toggled, debug logging will be displayed",
-            "required": false
-        }
-    }
+  {
+      "key": "UserName",
+      "type": "input",
+      "defaultValue": "",
+      "templateOptions": {
+          "label": "UserName",
+          "description": "The UserName to connect to the ServiceNow API",
+          "required": true
+      }
+  },
+  {
+      "key": "Password",
+      "type": "input",
+      "defaultValue": "",
+      "templateOptions": {
+          "type": "password",
+          "label": "Password",
+          "description": "The password to connect to the ServiceNow API",
+          "required": true
+      }
+  },
+  {
+      "key": "BaseUrl",
+      "type": "input",
+      "defaultValue": "",
+      "templateOptions": {
+          "label": "BaseUrl",
+          "placeholder": "https://{environment}.service-now.com",
+          "description": "The URL to the ServiceNow environment.",
+          "required": true
+      }
+  }
 ]
