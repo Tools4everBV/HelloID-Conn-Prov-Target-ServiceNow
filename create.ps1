@@ -94,7 +94,7 @@ try {
             $actionContext.Data['Manager'] = $managerAccount.result.sys_id
         } else {
             Write-Warning "Could not find manager with email: [$($personContext.Person.PrimaryManager.email)]"
-            $actionContext.Data.remove('manager')
+            $actionContext.Data.PSObject.Properties.remove('manager')
         }
     }
 
@@ -110,7 +110,7 @@ try {
             Write-Information "Found department: [$($department.name)] with id: [$($department.sys_id)]"
         } else {
             Write-Warning "Could not find department: [$($department.name)]"
-            $actionContext.Data.remove('department')
+            $actionContext.Data.PSObject.Properties.remove('department')
         }
     }
 
@@ -126,7 +126,7 @@ try {
             Write-Information "Found location: [$($location.name)] with id: [$($location.sys_id)]"
         } else {
             Write-Warning "Could not find location: [$($location.name)]"
-            $actionContext.Data.remove('location')
+            $actionContext.Data.PSObject.Properties.remove('location')
         }
     }
 

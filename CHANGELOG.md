@@ -2,6 +2,12 @@
 
 All notable changes to this project will be documented in this file. The format is based on [Keep a Changelog](https://keepachangelog.com), and this project adheres to [Semantic Versioning](https://semver.org).
 
+## [1.1.1] - 28-10-2026
+
+### Fixed
+- Replaced `$actionContext.Data.remove` to `$actionContext.Data.PSObject.Properties.remove`. Issue: [#4](https://github.com/Tools4everBV/HelloID-Conn-Prov-Target-ServiceNow/issues/4)
+
+
 ## [1.1.0] - 21-07-2025
 
 ### Added
