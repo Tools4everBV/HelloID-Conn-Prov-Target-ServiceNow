@@ -7,6 +7,8 @@ All notable changes to this project will be documented in this file. The format 
 ### Fixed
 - Replaced `$actionContext.Data.remove` to `$actionContext.Data.PSObject.Properties.remove`. Issue: [#4](https://github.com/Tools4everBV/HelloID-Conn-Prov-Target-ServiceNow/issues/4)
 
+### Changed
+- README to best practice.
 
 ## [1.1.0] - 21-07-2025
 
