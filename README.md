@@ -12,10 +12,13 @@
 - [HelloID-Conn-Prov-Target-ServiceNow](#helloid-conn-prov-target-servicenow)
   - [Table of contents](#table-of-contents)
   - [Introduction](#introduction)
+  - [Supported features](#supported-features)
+    - [Available lifecycle actions](#available-lifecycle-actions)
   - [Getting started](#getting-started)
+    - [HelloID Icon URL](#helloid-icon-url)
+    - [Requirements](#requirements)
     - [Connection settings](#connection-settings)
     - [Correlation configuration](#correlation-configuration)
-    - [Available lifecycle actions](#available-lifecycle-actions)
     - [Field mapping](#field-mapping)
   - [Remarks](#remarks)
     - [Account validation based on `email`](#account-validation-based-on-email)
@@ -30,7 +33,46 @@
 
 _HelloID-Conn-Prov-Target-ServiceNow_ is a _target_ connector. ServiceNow is a cloud-based platform that provides various software-as-a-service (SaaS) solutions for enterprise-level service management and IT operations management. It is primarily known for its IT Service Management (ITSM) capabilities, but it offers a wide range of applications and services for various departments within an organization.
 
+## Supported features
+
+The following features are available:
+
+| Feature                                   | Supported | Actions                         | Remarks |
+| ----------------------------------------- | --------- | ------------------------------- | ------- |
+| **Account Lifecycle**                     | ✅         | Create, Update, Enable, Disable |         |
+| **Permissions**                           | ❌         | -                               |         |
+| **Resources**                             | ❌         | -                               |         |
+| **Entitlement Import: Accounts**          | ✅         | -                               |         |
+| **Entitlement Import: Permissions**       | ❌         | -                               |         |
+| **Governance Reconciliation Resolutions** | ❌         | -                               |         |
+
+### Available lifecycle actions
+
+The following lifecycle actions are available:
+
+| Action             | Description                                                                     |
+| ------------------ | ------------------------------------------------------------------------------- |
+| create.ps1         | Creates a new account.                                                          |
+| disable.ps1        | Disables an account, preventing access without permanent removal.               |
+| enable.ps1         | Enables an account, granting access.                                            |
+| update.ps1         | Updates the attributes of an account.                                           |
+| configuration.json | Contains the connection settings and general configuration for the connector.   |
+| fieldMapping.json  | Defines mappings between person fields and target system person account fields. |
+
 ## Getting started
+
+### HelloID Icon URL
+
+URL of the icon used for the HelloID Provisioning target system.
+
+```text
+https://github.com/Tools4everBV/HelloID-Conn-Prov-Target-ServiceNow/blob/main/Logo.png
+```
+
+### Requirements
+
+- Connection details for the ServiceNow API: UserName, Password, and BaseUrl.
+- Coordinate the connector requirements with the client's application manager, including any contract or agreement required by the supplier.
 
 ### Connection settings
 
@@ -46,27 +88,14 @@ The following settings are required to connect to the API.
 
 The correlation configuration is used to specify which properties will be used to match an existing account within _ServiceNow_ to a person in _HelloID_.
 
-| Setting                   | Value                             |
-| ------------------------- | --------------------------------- |
-| Enable correlation        | `True`                            |
+| Setting                   | Value                                                 |
+| ------------------------- | ----------------------------------------------------- |
+| Enable correlation        | `True`                                                |
 | Person correlation field  | `Accounts.MicrosoftActiveDirectory.UserPrincipalName` |
-| Account correlation field | `email`                  |
+| Account correlation field | `email`                                               |
 
 > [!TIP]
 > _For more information on correlation, please refer to our correlation [documentation](https://docs.helloid.com/en/provisioning/target-systems/powershell-v2-target-systems/correlation.html) pages_.
-
-### Available lifecycle actions
-
-The following lifecycle actions are available:
-
-| Action             | Description                                                                     |
-| ------------------ | ------------------------------------------------------------------------------- |
-| create.ps1         | Creates a new account.                                                          |
-| disable.ps1        | Disables an account, preventing access without permanent removal.               |
-| enable.ps1         | Enables an account, granting access.                                            |
-| update.ps1         | Updates the attributes of an account.                                           |
-| configuration.json | Contains the connection settings and general configuration for the connector.   |
-| fieldMapping.json  | Defines mappings between person fields and target system person account fields. |
 
 ### Field mapping
 
@@ -90,7 +119,6 @@ The `department`, `location`, and `manager` fields are linked objects. This mean
   When creating a user, we ensure that the `manager`, `department`, and `location` exist in _ServiceNow_. If any of these fields do not exist:
   1. A warning is logged.
   2. The property is removed from the JSON payload before submission.
-  3.
 - **Update**:
   When updating a user’s department, location, or manager in _ServiceNow_, we:
   1. Verify if the corresponding values in `$correlatedAccount` exist and match a unique identifier pattern via a regular expression.
@@ -111,9 +139,6 @@ API documentation can be found on: https://docs.servicenow.com/bundle/utah-api-r
 
 > [!TIP]
 > _For more information on how to configure a HelloID PowerShell connector, please refer to our [documentation](https://docs.helloid.com/en/provisioning/target-systems/powershell-v2-target-systems.html) pages_.
-
-> [!TIP]
->  _If you need help, feel free to ask questions on our [forum](https://forum.helloid.com/forum/helloid-connectors/provisioning/4864-helloid-conn-prov-target-servicenow)_.
 
 ## HelloID docs
 

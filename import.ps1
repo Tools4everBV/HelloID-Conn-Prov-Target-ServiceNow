@@ -52,9 +52,6 @@ try {
     $headers = [System.Collections.Generic.Dictionary[string, string]]::new()
     $headers.Add("Authorization", "Basic $([System.Convert]::ToBase64String([System.Text.Encoding]::ASCII.GetBytes("$($actionContext.Configuration.UserName):$($actionContext.Configuration.Password)")))")
 
-    # Get Accounts
-    $importedAccounts = [System.Collections.ArrayList]::new()
-
     $take = 1000
     $skip = 0
     $moreRecords = $true
@@ -68,8 +65,31 @@ try {
     
         $GetResponse = (Invoke-RestMethod @splatGetAccounts)
 
-        foreach ($record in $GetResponse.result) {
-            [void]$importedAccounts.Add($record)
+        foreach ($importedAccount in $GetResponse.result) {
+            $enabled = $false
+
+            if ($importedAccount.active -eq $true) {
+                $enabled = $true
+            }
+
+            # Set UserName if missing
+            if ([string]::IsNullOrEmpty($importedAccount.user_name)) {
+                $importedAccount.user_name = $importedAccount.sys_id
+            }
+
+            # Set DisplayName if missing
+            if ([string]::IsNullOrEmpty($importedAccount.name)) {
+                $importedAccount.name = $importedAccount.user_name
+            }
+
+            # Return the result
+            Write-Output @{
+                AccountReference = $importedAccount.sys_id
+                DisplayName      = $importedAccount.name
+                UserName         = $importedAccount.user_name
+                Enabled          = $enabled
+                Data             = $importedAccount
+            }
         }
 
         if ($GetResponse.result.Count -lt $take) {
@@ -77,33 +97,6 @@ try {
         }
         else {
             $skip += $take
-        }
-    }
-    
-    foreach ($importedAccount in $importedAccounts) {
-        $enabled = $false
-
-        if ($importedAccount.active -eq $true) {
-            $enabled = $true
-        }
-
-        # Set UserName if missing
-        if ([string]::IsNullOrEmpty($importedAccount.user_name)) {
-            $importedAccount.user_name = $importedAccount.sys_id
-        }
-
-        # Set DisplayName if missing
-        if ([string]::IsNullOrEmpty($importedAccount.name)) {
-            $importedAccount.name = $importedAccount.user_name
-        }
-
-        # Return the result
-        Write-Output @{
-            AccountReference = $importedAccount.sys_id
-            DisplayName      = $importedAccount.name
-            UserName         = $importedAccount.user_name
-            Enabled          = $enabled
-            Data             = $importedAccount
         }
     }
     
